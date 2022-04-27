@@ -1,0 +1,114 @@
+Description: >-
+  Deploys a replacement for Second Life Experience Keys' key-value store based on AWS Lambda and DynamoDB.
+
+Parameters:
+  NameOfSolution:
+    Type: String
+    Default: sldb
+    Description: The name of our service, for resource naming
+
+  ArtifactBucket:
+    Type: String
+    Default: "dangerouslines-artifact"
+    Description: Where to retrieve the Lambda artifact
+  
+  Table:
+    Type: String
+    Default: sldb
+    Description: Table name for DynamoDB
+    
+Outputs:
+  SLDBURL:
+    Description: >-
+      Lambda URL for SLDB
+    Value: !GetAtt SLDBFunctionUrl.FunctionUrl
+
+Resources:
+  SLDBDynamoTable:
+    Type: AWS::DynamoDB::Table
+    Properties: 
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: 'key'
+          AttributeType: 'S'
+        - AttributeName: 'value'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'key'
+          KeyType: HASH
+      TableName: !Ref Table
+      Tags:
+        - Key: 'Service'
+          Value: !Ref NameOfSolution
+  
+  SLDBLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: "Determine if an instance is using an allowed OS"
+      FunctionName: !Sub "${NameOfSolution}"
+      Handler: 'lambda_function.lambda_handler'
+      Environment:
+        - table: !Ref Table
+      MemorySize: 256
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Architectures:
+        - 'arm64'
+      Runtime: python3.9
+      Timeout: 300
+      Code:
+        S3Bucket: !Ref ArtifactBucket
+        S3Key: !Sub '${NameOfSolution}/function.zip'
+      Tags:
+        - Key: 'Service'
+          Value: !Ref NameOfSolution
+
+  SLDBFunctionPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SLDBLambda
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+      
+  SLDBFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref SLDBLambda
+      AuthType: NONE
+      
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${NameOfSolution}"
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: Logging
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:*:log-group:/aws/lambda/${NameOfSolution}:log-stream:*"
+              - Sid: Database
+                Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !Sub 'arn:aws:dynamodb:*:${AWS::AccountId}:table/${Table}'
+                  
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${NameOfSolution}"
+      RetentionInDays: 90

@@ -1,7 +1,8 @@
+import os
 import json
 import boto3
 
-TABLE = 'http-test'
+TABLE = 'narf'
 
 def get_value(key):
     dynamo = boto3.client('dynamodb')
@@ -21,6 +22,8 @@ def get_value(key):
     return '1,14' # XP_ERROR_KEY_NOT_FOUND
 
 def lambda_handler(event, context):
+    global TABLE
+    TABLE = os.environ['table']
     if event['requestContext']['http']['method'] == 'GET':
         data_key = event['requestContext']['http']['path'].lstrip('/')
         key_value = get_value( data_key )

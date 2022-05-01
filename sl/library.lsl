@@ -1,13 +1,25 @@
-parse_response(body) {
-    if (llGetSubString(value, 0, 0) == "1")
+string SECURE_HEADER_VALUE = "SOME_STRING";
+string SLDB_URL = "Lambda URL with trailing slash";
+key requestId = NULL_KEY;
+
+readKeyValue( string data_key ) {
+    requestId = llHTTPRequest(
+        SLDB_URL + data_key,
+        [ HTTP_CUSTOM_HEADER, "Secure", SECURE_HEADER_VALUE ],
+        ""
+    );
+}
+
+parse_response(string body) {
+    if (llGetSubString(body, 0, 0) == "1")
     {
         // the key-value pair was successfully read
-        llSay(0, "New key-value pair value: " + llGetSubString(value, 2, -1));
+        llSay(0, "New key-value pair value: " + llGetSubString(body, 2, -1));
     }
     else
     {
         // the key-value pair failed to read
-        integer error =  (integer)llGetSubString(value, 2, -1);
+        integer error =  (integer)llGetSubString(body, 2, -1);
         llSay(0, "Key-value failed to read: " + llGetExperienceErrorMessage(error));
     }    
 }

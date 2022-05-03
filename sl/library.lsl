@@ -3,9 +3,12 @@ string SLDB_URL = "Lambda URL with trailing slash";
 key requestId = NULL_KEY;
 
 readKeyValue( string data_key ) {
+    string hash = llSHA1String(
+        (string)llGetObjectKey() + data_key + SECURE_HEADER_VALUE
+        );
     requestId = llHTTPRequest(
         SLDB_URL + data_key,
-        [ HTTP_CUSTOM_HEADER, "Secure", SECURE_HEADER_VALUE ],
+        [ HTTP_CUSTOM_HEADER, "Authentication", hash ],
         ""
     );
 }
@@ -25,9 +28,14 @@ parse_response(string body) {
 }
 
 default {
+    touch_end(integer d) {
+        readKeyValue( "test-key" )
+    }
+
     dataserver(key t, string value) {
         if ( t == requestId ) {
             parse_response(value);
+            requestId = NULL_KEY
         }
     }
     
@@ -35,7 +43,12 @@ default {
     {
         if (id == requestId && status == 200)
         {
-            parse_response(body);
+            if ( status == 200 ) {
+                parse_response(body);
+            } else {
+                llSay(0, "HTTP Error: " + (string)status + "\n" + body)
+            }
+            requestId = NULL_KEY
         }
     }
 }

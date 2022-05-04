@@ -6,6 +6,9 @@ import logging
 import hashlib
 import boto3
 
+# Configure logging
+logging.getLogger().setLevel(logging.WARNING)
+
 def get_value(key):
     """
     Actually fetch data from the database

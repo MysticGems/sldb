@@ -31,7 +31,8 @@ def put_value(key, value):
     Database write
     """
     dynamo = boto3.client('dynamodb')
-    # Limit bodies to 4095 characters
+    # Limit field sizes
+    key = key[:1011]
     value = value[:4095]
     try:
         response = dynamo.put_item(

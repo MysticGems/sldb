@@ -2,6 +2,7 @@
 Simple queries and updates to SLDB-type key-value database
 """
 import os
+import logging
 import hashlib
 import boto3
 
@@ -20,21 +21,33 @@ def get_value(key):
                 }
             )
     except:
-        return '1,13' # XP_STORAGE_EXCEPTION
+        return '0,13' # XP_STORAGE_EXCEPTION
     if 'Item' in response:
-        return '0,' + response['Item']['value']['S'] # XP_ERROR_NONE
-    return '1,14' # XP_ERROR_KEY_NOT_FOUND
+        return '1,' + response['Item']['value']['S'] # XP_ERROR_NONE
+    return '0,14' # XP_ERROR_KEY_NOT_FOUND
 
-def get_secret(secret):
+def put_value(key, value):
     """
-    Get secret for authentication
+    Database write
     """
-    secret_manager = boto3.client('secretsmanager')
+    dynamo = boto3.client('dynamodb')
+    # Limit bodies to 4095 characters
+    value = value[:4095]
     try:
-        response = secret_manager.get_secret_value( SecretId=secret )
-        return response['SecretString']
+        response = dynamo.put_item(
+            TableName=os.environ['table'],
+            Item={
+                'key': {
+                    'S': key
+                    },
+                'value': {
+                    'S': value
+                    }
+                }
+            )
     except:
-        return ''
+        return '0,13' # XP_STORAGE_EXCEPTION
+    return '1,' + value # XP_ERROR_NONE
 
 def authenticate(data_key, headers, secret_value):
     """
@@ -50,34 +63,52 @@ def authenticate(data_key, headers, secret_value):
         return authentication == headers['secure']
     except:
         return False
+        
+BAD_REQUEST = {
+    'statusCode': 400,
+    'headers': {'Content-Type': 'text/plain' },
+    'body': '400 Bad Request'
+}
 
 def lambda_handler(event, context):
     """
     Request handler
     """
+    if 'requestContext' not in event:
+        logging.error('Not an http(s) request')
+        return BAD_REQUEST
+    if 'x-secondlife-object-key' not in event['headers']:
+        logging.error('No object key in headers; not a Second Life request')
+        return BAD_REQUEST
+    data_key = event['requestContext']['http']['path'].lstrip('/')
+    if not authenticate( data_key, event['headers'], os.environ['secret'] ):
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'text/plain' },
+            'body': '0,4' # XP_ERROR_NOT_PERMITTED
+        }
     if event['requestContext']['http']['method'] == 'GET':
-        data_key = event['requestContext']['http']['path'].lstrip('/')
-        secret = get_secret(os.environ['secret'])
-        if not secret:
-            return {
-                'statusCode': 200,
-                'headers': {'Content-Type': 'text/plain' },
-                'body': '1,13' # XP_STORAGE_EXCEPTION
-            }
-        if not authenticate( key_value, event['headers'], secret ):
-            return {
-                'statusCode': 200,
-                'headers': {'Content-Type': 'text/plain' },
-                'body': '1,4' # XP_ERROR_NOT_PERMITTED
-            }
         key_value = get_value( data_key )
         return {
             'statusCode': 200,
             'headers': {'Content-Type': 'text/plain' },
             'body': key_value
         }
+    if event['requestContext']['http']['method'] == 'PUT':
+        if 'body' not in event:
+            return {
+                'statusCode': 400,
+                'headers': {'Content-Type': 'text/plain' },
+                'body': '400 Bad Request: No payload'
+                }
+        key_value = put_value( data_key, event['body'] )
+        return {
+            'statusCode': 200,
+            'headers': {'Content-Type': 'text/plain' },
+            'body': key_value
+        }
     return {
-        'statusCode': 403,
+        'statusCode': 501,
         'headers': {'Content-Type': 'text/plain' },
-        'body': '403 forbidden'
+        'body': '501 Not Implemented'
     }

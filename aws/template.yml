@@ -11,6 +11,17 @@ Parameters:
     Type: String
     Default: "mysticgems-artifact"
     Description: Where to retrieve the Lambda artifact
+    
+  # This is terrible practice. However, SL forces us into the worse practice
+  # of storing secrets in plain text in the script, so I don't feel as bad
+  # about it. Doing it this way avoids using Secrets Manager (the right way
+  # to do it), which improves performance slightly and saves a few pennies. 
+  Secret:
+    Type: String
+    NoEcho: true
+    Description: Password for the Lambda
+    MinLength: 20
+    MaxLength: 128
   
 Outputs:
   SLDBURL:
@@ -43,6 +54,7 @@ Resources:
       Environment:
         Variables:
           table: !Ref NameOfSolution
+          secret: !Ref Secret
       MemorySize: 128
       Role: !GetAtt LambdaExecutionRole.Arn
       Architectures:
@@ -51,7 +63,7 @@ Resources:
       Timeout: 300
       Code:
         S3Bucket: !Ref ArtifactBucket
-        S3Key: !Sub 'sldb/function.zip'
+        S3Key: 'sldb/function.zip'
       Tags:
         - Key: 'Service'
           Value: !Ref NameOfSolution

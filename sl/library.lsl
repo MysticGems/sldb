@@ -13,6 +13,18 @@ readKeyValue( string data_key ) {
     );
 }
 
+updateKeyValue( string data_key, string value ) {
+    string hash = llSHA1String(
+        (string)llGetObjectKey() + data_key + SECURE_HEADER_VALUE
+        );
+    requestId = llHTTPRequest(
+        SLDB_URL + data_key,
+        [ HTTP_METHOD, "PUT",
+          HTTP_CUSTOM_HEADER, "Authentication", hash ],
+        value
+    );
+}
+
 parse_response(string body) {
     if (llGetSubString(body, 0, 0) == "1")
     {
@@ -32,16 +44,9 @@ default {
         readKeyValue( "test-key" )
     }
 
-    dataserver(key t, string value) {
-        if ( t == requestId ) {
-            parse_response(value);
-            requestId = NULL_KEY
-        }
-    }
-    
     http_response(key id, integer status, list metaData, string body)
     {
-        if (id == requestId && status == 200)
+        if (id == requestId)
         {
             if ( status == 200 ) {
                 parse_response(body);

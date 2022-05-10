@@ -6,9 +6,6 @@ import logging
 import hashlib
 import boto3
 
-# Configure logging
-logging.getLogger().setLevel(logging.WARNING)
-
 def get_value(key):
     """
     Actually fetch data from the database
@@ -34,8 +31,7 @@ def put_value(key, value):
     Database write
     """
     dynamo = boto3.client('dynamodb')
-    # Limit field sizes
-    key = key[:1011]
+    # Limit bodies to 4095 characters
     value = value[:4095]
     try:
         response = dynamo.put_item(
@@ -82,7 +78,12 @@ def lambda_handler(event, context):
         logging.error('Not an http(s) request')
         return BAD_REQUEST
     if 'x-secondlife-object-key' not in event['headers']:
-        logging.error('No object key in headers; not a Second Life request')
+        logging.error(
+            'No object key in headers; not a Second Life request. From %s for %s via %s',
+            event['requestContext']['http']['sourceIp'],
+            event['requestContext']['http']['path'],
+            event['requestContext']['http']['userAgent']
+        )
         return BAD_REQUEST
     data_key = event['requestContext']['http']['path'].lstrip('/')
     if not authenticate( data_key, event['headers'], os.environ['secret'] ):

@@ -4,7 +4,7 @@ key requestId = NULL_KEY;
 
 readKeyValue( string data_key ) {
     string hash = llSHA1String(
-        (string)llGetObjectKey() + data_key + SECURE_HEADER_VALUE
+        (string)llGetKey() + data_key + SECURE_HEADER_VALUE
         );
     requestId = llHTTPRequest(
         SLDB_URL + data_key,

@@ -8,7 +8,7 @@ readKeyValue( string data_key ) {
         );
     requestId = llHTTPRequest(
         SLDB_URL + data_key,
-        [ HTTP_CUSTOM_HEADER, "Authentication", hash ],
+        [ HTTP_CUSTOM_HEADER, "secure", hash ],
         ""
     );
 }

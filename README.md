@@ -1,5 +1,7 @@
 This is intended as a replacement for the SL Experience key-value store, using AWS resources and accessible via https. It's not as secure, and slower, but it does work on land where an Experience hasn’t been enabled. It should be possible to run all but very popular services on the [AWS free tier](https://aws.amazon.com/free/), but it is always a good idea to set up a [billing alarm](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/monitor_estimated_charges_with_cloudwatch.html) to avoid unpleasant surprises.
 
+**Note:** This project is no longer required since experiences are now allowed access to the key-value database regardless of whether the experience is enabled on a particular plot.
+
 # Components
 
 ## `sl/library.lsl`
